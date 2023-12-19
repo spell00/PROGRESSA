@@ -73,7 +73,7 @@ To reproduce the analysis from the paper, run the following commands
 
 To reproduce the images from the paper, run the following commands
 
-`python3 progressa/create_images/plot_roc.py`
+`python3 progressa/create_images/plot_rocs.py`
 
 `python3 progressa/create_images/plot_tsne.py`
 
