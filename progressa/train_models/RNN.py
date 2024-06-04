@@ -1,14 +1,13 @@
 import pickle
 import numpy as np
 import os
-from progressa.train_models.ML import Classifier
+from ML import Classifier
 import argparse
 from tensorflow.keras.layers import *
 from tensorflow.keras.models import *
 from tensorflow.keras.callbacks import *
 from tensorflow.keras.utils import set_random_seed
 import tensorflow as tf
-
 def get_data(set_features, set_labels, indices):
     new_features = []
     new_labels = []
@@ -38,6 +37,7 @@ class RNN(Classifier):
         RNN constructor
         """
         super().__init__(args)
+        os.makedirs(f"results/{self.path}/{args.n_neurons}/weights/", exist_ok=True)
 
     def train(self):
         best_epoch = []
@@ -47,23 +47,18 @@ class RNN(Classifier):
             # self.split_data(i)
             X_train = self.features[self.indices_dict['train']]
             y_train = np.expand_dims(self.labels[self.indices_dict['train']], axis=-1)
-            # X_train, y_train, patient_visit_train = utils.get_data(X_train, y_train, self.indices_dict['train'])
-
-            X_train = self.scaler.fit_transform(X_train.reshape(-1, X_train.shape[-1])).reshape(X_train.shape)
-            X_train = np.nan_to_num(X_train, nan=-1)
-
             X_test = self.features[self.indices_dict['test']]
             y_test = np.expand_dims(self.labels[self.indices_dict['test']], axis=-1)
-            # X_test, y_test, patient_visit_test = utils.get_data(X_test, y_test, self.indices_dict['test'])
-
-            X_test = self.scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
-            X_test = np.nan_to_num(X_test, nan=-1)
-
             X_val = self.features[self.indices_dict['valid']]
             y_val = np.expand_dims(self.labels[self.indices_dict['valid']], axis=-1)
-            # X_val, y_val, patient_visit_val = utils.get_data(X_val, y_val, self.indices_dict['valid'])
 
-            X_val = self.scaler.transform(X_val.reshape(-1, X_val.shape[-1])).reshape(X_val.shape)
+            if self.scaler is not None:
+                X_train = self.scaler.fit_transform(X_train.reshape(-1, X_train.shape[-1])).reshape(X_train.shape)
+                X_test = self.scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
+                X_val = self.scaler.transform(X_val.reshape(-1, X_val.shape[-1])).reshape(X_val.shape)
+
+            X_train = np.nan_to_num(X_train, nan=-1)
+            X_test = np.nan_to_num(X_test, nan=-1)
             X_val = np.nan_to_num(X_val, nan=-1)
 
             es = EarlyStopping(monitor='val_loss', verbose=0, patience=150, restore_best_weights=True)
@@ -71,9 +66,13 @@ class RNN(Classifier):
             input = Input(shape=(None, X_train.shape[-1]))
             lstm = Masking(mask_value=-1)(input)
             if self.args.model == 'GRU':
-                lstm = GRU(16, dropout=0.5, recurrent_dropout=0.5, return_sequences=True, activation="sigmoid")(lstm)
+                lstm = GRU(self.args.n_neurons, dropout=0.5, 
+                           recurrent_dropout=0.5, return_sequences=True, 
+                           activation="sigmoid")(lstm)
             elif self.args.model == 'LSTM':
-                lstm = LSTM(16, dropout=0.5, recurrent_dropout=0.5, return_sequences=True)(lstm)
+                lstm = LSTM(self.args.n_neurons, dropout=0.5, 
+                            recurrent_dropout=0.5, return_sequences=True
+                            )(lstm)
             else:
                 exit('WRONG MODEL NAME')
             lstm = Dense(1, activation="sigmoid")(lstm)
@@ -83,7 +82,8 @@ class RNN(Classifier):
 
             history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1000, callbacks=[es], verbose=0)
             best_epoch.append(np.argmin(history.history['val_loss']))
-            model.save(f"results/{self.args.model}/weights/{i}_{self.args.n_features}.h5")
+
+            model.save(f"results/{self.path}/{self.args.n_neurons}/weights/{i}.h5")
 
             predictions_raw = model.predict(X_test)[:, :, 0]
             predictions = np.round(predictions_raw)
@@ -95,20 +95,16 @@ class RNN(Classifier):
                         self.predictions_raw_values_per_visit[v][i].append(predictions_raw[p_idx, v])
                         self.real_values_per_visit[v][i].append(y_test[p_idx, v])
                     else:
-                        # self.predictions_values_per_visit[-1][i].append(predictions[p_idx, v - 1])
-                        # self.predictions_raw_values_per_visit[-1][i].append(predictions_raw[p_idx, v - 1])
-                        # self.real_values_per_visit[-1][i].append(y_test[p_idx, v - 1])
                         break
-                    # if v == (self.n_max_visits - 1):
-                    #     self.predictions_values_per_visit[- 1][i].append(predictions[p_idx, v])
-                    #     self.predictions_raw_values_per_visit[- 1][i].append(predictions_raw[p_idx, v])
-                    #     self.real_values_per_visit[- 1][i].append(y_test[p_idx, v])
             print(f'Best epoch: train: {np.max(history.history["accuracy"])} valid: {np.max(history.history["val_accuracy"])}')
         print('Average epochs: ', np.mean(best_epoch), "+-", np.std(best_epoch))
-        # self.save_indices()
-        pickle.dump(self.predictions_values_per_visit, open(f"results/{self.args.model}/predictions_{self.args.endpoint}_{self.args.n_features}.pkl", "wb"))
-        pickle.dump(self.predictions_raw_values_per_visit, open(f"results/{self.args.model}/predictions_raw_{self.args.endpoint}_{self.args.n_features}.pkl", "wb"))
-        pickle.dump(self.real_values_per_visit, open(f"results/{self.args.model}/real_values_{self.args.endpoint}_{self.args.n_features}.pkl", "wb"))
+        os.makedirs(f"results/{self.path}/{self.args.n_neurons}/", exist_ok=True)
+        pickle.dump(self.predictions_values_per_visit,
+                    open(f"results/{self.path}/{self.args.n_neurons}/predictions.pkl", "wb"))
+        pickle.dump(self.predictions_raw_values_per_visit,
+                    open(f"results/{self.path}/{self.args.n_neurons}/predictions_raw.pkl", "wb"))
+        pickle.dump(self.real_values_per_visit,
+                    open(f"results/{self.path}/{self.args.n_neurons}/real_values.pkl", "wb"))
 
 
 def main():
@@ -123,8 +119,11 @@ def main():
     parser.add_argument("--model", type=str, default="GRU", help='choose one of [GRU, LSTM]')
     parser.add_argument("--n_splits", type=int, default=100)
     parser.add_argument("--endpoint", type=str, default='2', help="5 or 2 years ['2', '5']")
+    parser.add_argument("--n_neurons", type=int, default=16)
+    parser.add_argument("--gpu_id", type=str, default='1')
 
     args = parser.parse_args()
+    os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu_id
 
     args.labels_file = f"{args.labels_file}_{args.endpoint}.pkl"
     if args.n_features == -1:

@@ -1,3 +1,4 @@
+import os
 import pickle
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
@@ -5,6 +6,8 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import GaussianNB
 import lightgbm
+# import xgboost
+from xgboost import XGBClassifier
 
 
 class Classifier:
@@ -23,17 +26,23 @@ class Classifier:
             self.scaler = StandardScaler()
         elif args.scaler == 'robust':
             self.scaler = RobustScaler()
-        else:
+        elif args.scaler == 'minmax':
             self.scaler = MinMaxScaler(feature_range=(-1, 1))
+        else:
+            self.scaler = None
 
-        if self.args.model == 'Logistic_Regression':
+        if  'Logistic_Regression' in self.args.model:
             self.model = LogisticRegression
-        elif self.args.model == 'naiveBayes':
+        elif 'naiveBayes' in self.args.model:
             self.model = GaussianNB
-        elif self.args.model == 'lightgbm':
+        elif 'lightgbm' in self.args.model:
             self.model = lightgbm.LGBMClassifier
+        elif 'xgboost' in self.args.model:
+            self.model = XGBClassifier
         self.get_splits()
         print(self.args.n_splits)
+        self.path = f"{self.args.model}/{self.args.scaler}/{self.args.n_features}_features/n{self.args.n_splits}/endpoint{self.args.endpoint}/"
+        os.makedirs(f"results/{self.path}/", exist_ok=True)
 
     def make_indices_dict(self, i):
 
@@ -100,8 +109,8 @@ class Classifier:
         indices_file = f"{self.args.data_path}/split_indices.csv"
         self.all_indices = np.loadtxt(open(indices_file), delimiter=",")[:, 1:]
 
-    def save_indices(self):
-        np.savetxt(f"results/{self.args.model}/split_indices.csv", self.all_indices, delimiter=",", fmt='%d')
+    # def save_indices(self):
+    #     np.savetxt(f"results/{self.args.model}/split_indices.csv", self.all_indices, delimiter=",", fmt='%d')
 
     def train(self):
         pass

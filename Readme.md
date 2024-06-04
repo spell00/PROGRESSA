@@ -48,6 +48,7 @@ To train the machine learning models compared with RNN, use the following comman
 `python3 progressa/train_models/sklearn_models.py --model=naiveBayes`
 `python3 progressa/train_models/sklearn_models.py --model=Logistic_Regression`
 `python3 progressa/train_models/sklearn_models.py --model=lightgbm`
+`python3 progressa/train_models/sklearn_models.py --model=xgboost`
 
 To train on 2 visits at a time, modify the precedent commands by adding the command `--n_visits=2`.
 For example:

@@ -15,73 +15,48 @@ class SklearnClassifier(Classifier):
         """
         SklearnClassifier constructor
         """
+        args.model = f"{args.model}_cumul"
         super().__init__(args)
-        if args.n_visits == 2:
-            self.get_data = utils.get_data_2v
-        else:
-            self.get_data = self.get_data
-
-    def get_data(self, set_features, set_labels, indices):
-        new_features = []
-        new_labels = []
-        patient_visit = []
-        for p_idx in range(set_features.shape[0]):
-            for v in range(set_features.shape[1]):
-                if np.nan_to_num(set_features[p_idx, v], nan=-1).max() != -1:
-                    new_features.append(set_features[p_idx, v])
-                    new_labels.append(set_labels[p_idx, v])
-                    patient_visit.append(np.array([indices[p_idx], v]))
-                else:
-                    pass
-        set_features = np.asarray(new_features)
-        set_labels = np.asarray(new_labels)
-        patient_visit = np.asarray(patient_visit)
-
-        return set_features, set_labels, patient_visit
 
     def train(self):
         for i in range(self.args.n_splits):
             self.make_indices_dict(i)
             # self.split_data(i)
             X_train = self.features[self.indices_dict['train']]
-            y_train = self.labels[self.indices_dict['train']]
+            Y_train = self.labels[self.indices_dict['train']]
             X_test = self.features[self.indices_dict['test']]
-            y_test = self.labels[self.indices_dict['test']]
+            Y_test = self.labels[self.indices_dict['test']]
             X_val = self.features[self.indices_dict['valid']]
-            y_val = self.labels[self.indices_dict['valid']]
-
-            X_train, y_train, patient_visit_train = self.get_data(X_train, y_train, self.indices_dict['train'])
-            X_test, y_test, patient_visit_test = self.get_data(X_test, y_test, self.indices_dict['test'])
-            X_val, y_val, patient_visit_val = self.get_data(X_val, y_val, self.indices_dict['valid'])
+            Y_val = self.labels[self.indices_dict['valid']]
 
             if self.scaler is not None:
-                X_train = self.scaler.fit_transform(X_train)
-                X_test = self.scaler.transform(X_test)
-                X_val = self.scaler.transform(X_val)
+                X_train = self.scaler.fit_transform(X_train.reshape(-1, X_train.shape[-1])).reshape(X_train.shape)
+                X_test = self.scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
+                X_val = self.scaler.transform(X_val.reshape(-1, X_val.shape[-1])).reshape(X_val.shape)
 
             X_train = np.nan_to_num(X_train, nan=-1)
             X_test = np.nan_to_num(X_test, nan=-1)
             X_val = np.nan_to_num(X_val, nan=-1)
 
-            model = self.model()
-            model.fit(X_train, y_train)
-
-            predictions = model.predict(X_test)
-            predictions_raw = model.predict_proba(X_test)[:, 1]
             for v in range(self.n_max_visits):
-                v_ids = np.where(patient_visit_test[:, 1] == v)[0]
+                x_train = X_train[:, :v+1, :]
+                x_train = x_train.reshape(x_train.shape[0], -1)
+                x_test = X_test[:, :v+1, :]
+                x_test = x_test.reshape(x_test.shape[0], -1)
+                x_val = X_val[:, :v+1, :]
+                x_val = x_val.reshape(x_val.shape[0], -1)
+                y_train = Y_train[:, v]
+                y_test = Y_test[:, v]
+                y_val = Y_val[:, v]
 
-                if len(v_ids) > 0:
-                    self.predictions_values_per_visit[v][i] += predictions[v_ids].tolist()
-                    self.predictions_raw_values_per_visit[v][i] += predictions_raw[v_ids].tolist()
-                    self.real_values_per_visit[v][i] += y_test[v_ids].tolist()
+                model = self.model()
+                model.fit(x_train, y_train)
 
-                    if v == 0:
-                        for patients_idx in np.unique(patient_visit_test[:, 0]):
-                            this_patient_samples = np.where(patient_visit_test[:, 0] == patients_idx)[0]
-                            self.predictions_values_per_visit[-1][i].append(predictions[this_patient_samples[-1]])
-                            self.predictions_raw_values_per_visit[-1][i].append(predictions_raw[this_patient_samples[-1]])
-                            self.real_values_per_visit[-1][i].append(y_test[this_patient_samples[-1]])
+                predictions = model.predict(x_test)
+                predictions_raw = model.predict_proba(x_test)[:, 1]
+                self.predictions_values_per_visit[v][i] = predictions.tolist()
+                self.predictions_raw_values_per_visit[v][i] = predictions_raw.tolist()
+                self.real_values_per_visit[v][i] = y_test.tolist()
                 # print(f'V{v}: {np.sum([x==y for x,y in zip(self.predictions_values_per_visit[v][i],self.real_values_per_visit[v][i])])/len(self.predictions_values_per_visit[v][i])}')
         pickle.dump(self.predictions_values_per_visit, open(f"results/{self.path}/predictions.pkl", "wb"))
         pickle.dump(self.predictions_raw_values_per_visit, open(f"results/{self.path}/predictions_raw.pkl", "wb"))
@@ -96,6 +71,8 @@ def main():
     parser.add_argument("--patients_file", type=str, default="patients.pkl")
     parser.add_argument("--data_path", type=str, default="data")
     parser.add_argument("--scaler", type=str, default="minmax")
+
+    # parser.add_argument("--indices_file", type=str, default="features/split_indices.csv")
     parser.add_argument("--model", type=str, default="Logistic_Regression", help='choose one of [Logistic_Regression, naiveBayes, lightgbm]')
     parser.add_argument("--n_splits", type=int, default=100)
     parser.add_argument("--n_visits", type=int, default=1)
@@ -105,7 +82,7 @@ def main():
 
     args.labels_file = f"{args.labels_file}_{args.endpoint}.pkl"
 
-    os.makedirs(f'results/{args.model}', exist_ok=True)
+    os.makedirs(f'results/{args.model}_cumul', exist_ok=True)
     if args.n_features == -1:
         args.features_file = f"{args.features_file}_{args.endpoint}.pkl"
     else:
