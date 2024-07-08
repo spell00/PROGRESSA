@@ -16,12 +16,12 @@ def make_calibration_plot(args):
     # feature_names = pickle.load(open("../feature_names.pkl", "rb"))
 
     indices_file = f"{args.data_path}/split_indices.csv"
-    indices = np.loadtxt(open(indices_file), delimiter=",")[:, 1:]
+    indices = np.loadtxt(open(indices_file), delimiter=",")
 
     n_max_visits = features.shape[1]
 
     ### RNN
-    rnn_output_path = "results/GRU/"
+    rnn_output_path = f"results/{args.model}/{args.scaler}/{args.n_features}_features/n{args.n_splits}/endpoint{args.endpoint}/{args.n_neurons}/"
     if not os.path.exists(rnn_output_path):
         os.makedirs(rnn_output_path)
 
@@ -108,7 +108,7 @@ def make_calibration_plot(args):
     tpr_lower = tpr_mean - tpr_std
     x, y = np.linspace(0, 1), np.linspace(0, 1)
     plt.plot(x, y, "--", color="black", label="Perfect calibration", alpha=.5)
-    plt.plot(fpr_mean, tpr_mean, label="GRU")
+    plt.plot(fpr_mean, tpr_mean, label=args.model)
     plt.fill_between(fpr_mean, tpr_lower, tpr_upper, alpha=.2)
 
     plt.legend(loc="lower right")
@@ -116,7 +116,7 @@ def make_calibration_plot(args):
     plt.ylabel("Fraction of positives (Targets)")
     plt.xlim((0,1))
     plt.ylim((0,1))
-    plt.savefig("Calibration_plot.png")
+    plt.savefig(f"{rnn_output_path}/Calibration_plot.png")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -128,7 +128,11 @@ def main():
     # parser.add_argument("--indices_file", type=str, default="features/split_indices.csv")
     parser.add_argument("--model", type=str, default="GRU", help='choose one of [GRU, LSTM]')
     parser.add_argument("--n_rep", type=int, default=100)
-    parser.add_argument("--endpoint", type=str, default='2', help="Final endpoint or 2 years ['2', 'final']")
+    parser.add_argument("--endpoint", type=str, default='2', help="Final endpoint or 2 years ['2', '5']")
+    parser.add_argument("--scaler", type=str, default="minmax")
+    parser.add_argument("--n_neurons", type=int, default=16)
+    parser.add_argument("--n_splits", type=int, default=100)
+
 
     args = parser.parse_args()
     args.labels_file = f"{args.labels_file}_{args.endpoint}.pkl"

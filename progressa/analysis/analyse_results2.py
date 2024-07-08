@@ -16,7 +16,6 @@ def analyse_results(args):
             print(method)
             predictions = pickle.load(open(method_path + f"/predictions_{args.endpoint}_{args.n_features}.pkl", "rb"))
             raw_predictions = pickle.load(open(method_path + f"/predictions_raw_{args.endpoint}_{args.n_features}.pkl", "rb"))
-
             real_values = pickle.load(open(method_path + f"/real_values_{args.endpoint}_{args.n_features}.pkl", "rb"))
             scores = np.zeros((100, len(scores_names)))
             line_to_print = " ".join(scores_names)
@@ -24,7 +23,6 @@ def analyse_results(args):
             # print("#visits", scores_names)
             for v in predictions.keys():
                 scores = np.zeros((100, len(scores_names)))
-
                 for i in range(100):
                     if len(real_values[v][i]) > 0:
                         these_real_values = np.asarray(real_values[v][i])

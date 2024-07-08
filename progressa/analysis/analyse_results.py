@@ -5,7 +5,6 @@ from sklearn import metrics
 from scipy import stats
 import argparse
 
-
 def analyse_results(args):
     scores_names = ["#patients", "accuracy", "TPR", "TNR", "precision", "f-score", "phi-coefficient", "AUC"]
     path = f"{args.scaler}/{args.n_features}_features/n{args.n_splits}/endpoint{args.endpoint}/"
@@ -17,8 +16,6 @@ def analyse_results(args):
             continue
         if os.path.isdir(method_path):
             print(method)
-            # if method in ["LSTM"]:
-            #     continue
             predictions = pickle.load(open(method_path + f"/predictions.pkl", "rb"))
             raw_predictions = pickle.load(open(method_path + f"/predictions_raw.pkl", "rb"))
             real_values = pickle.load(open(method_path + f"/real_values.pkl", "rb"))
@@ -31,7 +28,7 @@ def analyse_results(args):
             for v in predictions.keys():
                 scores = np.zeros((len(predictions[v]), len(scores_names)))
                 for i in range(len(predictions[v])):
-                    if len(real_values[v][0]) > 0:
+                    if len(real_values[v][i]) > 0:
                         these_real_values = np.asarray(real_values[v][i])
                         these_predictions = np.asarray(predictions[v][i])
                         scores[i][0] = len(these_predictions)
@@ -43,7 +40,8 @@ def analyse_results(args):
                         scores[i][6] = metrics.matthews_corrcoef(these_real_values, these_predictions)
                         fpr, tpr, thresholds = metrics.roc_curve(these_real_values, np.asarray(raw_predictions[v][i]))
                         scores[i][7] = metrics.auc(fpr, tpr)
-
+                    else:
+                        pass
                 intervals_to_print = str(v + 1)
                 avg_scores_to_print = str(v + 1)
                 for s in range(len(scores_names)):

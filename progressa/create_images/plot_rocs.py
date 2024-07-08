@@ -14,22 +14,28 @@ def plot_roc(args):
     fig, axs = plt.subplots(2, 3, figsize=(30, 30), dpi=110)
     plt.rc('font', size=22)  # controls default text sizes
     plt.rc('figure', titlesize=22)  # fontsize of the figure title
-    path = f"{args.scaler}/{args.n_features}_features/n{args.n_splits}/endpoint{args.endpoint}/"
     for method in sorted(os.listdir(args.results_path))[::-1]:
         print(method)
         if 'cumul' in method:
             cumul = 1
         else:
             cumul = 0
-        if cumul != args.cumul and method not in ['LSTM', "GRU"]:
+        if cumul != args.cumul and method not in ["GRU"]:
             continue
+        if args.n_features in ['-1', '22']:
+            path = f"{args.scaler}/{args.n_features}_features/n{args.n_splits}/endpoint{args.endpoint}/"
+        else:
+            if "Logistic_Regression" in method:
+                path = f"{args.scaler}/22_features/n{args.n_splits}/endpoint{args.endpoint}/"
+            else:
+                path = f"{args.scaler}/-1_features/n{args.n_splits}/endpoint{args.endpoint}/"
         method_path = f"{args.results_path}/{method}/{path}"
         if "LSTM" in method or "GRU" in method:
             method_path = f"{method_path}/{args.n_neurons}"
         if os.path.isdir(method_path) & ("2v" not in method):
             if cumul == 1 and method not in ["GRU", "LSTM"]:
                 method = "_".join(method.split("_")[:-1])
-            if method not in ["Logistic_Regression", "GRU", "xgboost", "LSTM"]:
+            if method not in ["Logistic_Regression", "GRU", "lightgbm"] and args.all_models == 0:
                 continue
             if method == "Logistic_Regression":
                 method = "LogReg"
@@ -59,7 +65,7 @@ def plot_roc(args):
     fig.text(0.5, 0.04, '1-Specificity', ha='center', va='center')
     fig.text(0.08, 0.5, "Sensitivity", ha='center', va='center', rotation='vertical')
     os.makedirs(f"results/roc/cumul{args.cumul}", exist_ok=True)
-    plt.savefig(f'results/roc/cumul{args.cumul}/roc_{args.endpoint}_{args.n_features}_{args.scaler}_n{args.n_splits}.png')
+    plt.savefig(f'results/roc/cumul{args.cumul}/roc_{args.endpoint}_{args.n_features}_{args.scaler}_n{args.n_splits}_all{args.all_models}.png')
 
 
 def plot_intervals(results, axs, v, method, n_splits):
@@ -73,9 +79,9 @@ def plot_intervals(results, axs, v, method, n_splits):
     tpr_mean = np.mean(interp_tprs, axis=0)
     tpr_std = np.std(interp_tprs, axis=0)
 
-    if "GRU" in method:
-        optimal_idx = np.argmax(np.asarray(tpr_mean) - np.asarray(fpr_mean))
-        axs[int(v / 3), v % 3].scatter(fpr_mean[optimal_idx], tpr_mean[optimal_idx], color="black", zorder=3, s=10)
+    # if "GRU" in method:
+    #     optimal_idx = np.argmax(np.asarray(tpr_mean) - np.asarray(fpr_mean))
+    #     axs[int(v / 3), v % 3].scatter(fpr_mean[optimal_idx], tpr_mean[optimal_idx], color="black", zorder=3, s=10)
     if v == 0:
         axs[int(v / 3), v % 3].set_title("Baseline")
     else:
@@ -96,11 +102,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--results_path", type=str, default="results/")
     parser.add_argument("--n_splits", type=int, default=100)
-    parser.add_argument("--n_features", type=int, default=-1)
+    parser.add_argument("--n_features", type=str, default='-1')
     parser.add_argument("--endpoint", type=str, default='2', help="Final endpoint or 2 years ['2', 'final']")
     parser.add_argument("--scaler", type=str, default='minmax')
     parser.add_argument("--cumul", type=int, default=0)
     parser.add_argument("--n_neurons", type=int, default=16)
+    parser.add_argument("--all_models", type=int, default=0)
 
     args = parser.parse_args()
 

@@ -55,16 +55,24 @@ class SklearnClassifier(Classifier):
             X_val, y_val, patient_visit_val = self.get_data(X_val, y_val, self.indices_dict['valid'])
 
             if self.scaler is not None:
-                X_train = self.scaler.fit_transform(X_train)
+                X_train = self.scaler.transform(X_train)
                 X_test = self.scaler.transform(X_test)
                 X_val = self.scaler.transform(X_val)
 
             X_train = np.nan_to_num(X_train, nan=-1)
             X_test = np.nan_to_num(X_test, nan=-1)
             X_val = np.nan_to_num(X_val, nan=-1)
-
+            features = np.nan_to_num(self.features, nan=-1)
+            features = features.reshape(-1, features.shape[-1])
+            # Remove rows with only -1
+            mask = np.all(features == -1, axis=1)
+            features = features[~mask]
+            # Count all -1
+            n_missing = np.sum(features == -1)
+            
             model = self.model()
             model.fit(X_train, y_train)
+            pickle.dump(model, open(f"results/{self.path}/weights/{i}.pkl", "wb"))
 
             predictions = model.predict(X_test)
             predictions_raw = model.predict_proba(X_test)[:, 1]
@@ -107,9 +115,9 @@ def main():
 
     os.makedirs(f'results/{args.model}', exist_ok=True)
     if args.n_features == -1:
-        args.features_file = f"{args.features_file}_{args.endpoint}.pkl"
+        args.features_file = f"{args.features_file}.pkl"
     else:
-        args.features_file = f"{args.features_file}-{args.n_features}_{args.endpoint}.pkl"
+        args.features_file = f"{args.features_file}-{args.n_features}.pkl"
 
     classifier = SklearnClassifier(args)
     classifier.load_data(

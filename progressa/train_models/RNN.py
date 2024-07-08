@@ -8,6 +8,7 @@ from tensorflow.keras.models import *
 from tensorflow.keras.callbacks import *
 from tensorflow.keras.utils import set_random_seed
 import tensorflow as tf
+
 def get_data(set_features, set_labels, indices):
     new_features = []
     new_labels = []
@@ -54,8 +55,8 @@ class RNN(Classifier):
 
             if self.scaler is not None:
                 X_train = self.scaler.fit_transform(X_train.reshape(-1, X_train.shape[-1])).reshape(X_train.shape)
-                X_test = self.scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
-                X_val = self.scaler.transform(X_val.reshape(-1, X_val.shape[-1])).reshape(X_val.shape)
+                X_test = self.scaler.fit_transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
+                X_val = self.scaler.fit_transform(X_val.reshape(-1, X_val.shape[-1])).reshape(X_val.shape)
 
             X_train = np.nan_to_num(X_train, nan=-1)
             X_test = np.nan_to_num(X_test, nan=-1)
@@ -66,13 +67,15 @@ class RNN(Classifier):
             input = Input(shape=(None, X_train.shape[-1]))
             lstm = Masking(mask_value=-1)(input)
             if self.args.model == 'GRU':
-                lstm = GRU(self.args.n_neurons, dropout=0.5, 
-                           recurrent_dropout=0.5, return_sequences=True, 
-                           activation="sigmoid")(lstm)
+                lstm = GRU(self.args.n_neurons,
+                           dropout=0.5,
+                           recurrent_dropout=0.5,
+                           return_sequences=True)(lstm)
             elif self.args.model == 'LSTM':
-                lstm = LSTM(self.args.n_neurons, dropout=0.5, 
-                            recurrent_dropout=0.5, return_sequences=True
-                            )(lstm)
+                lstm = LSTM(self.args.n_neurons,
+                            dropout=0.5,
+                            recurrent_dropout=0.5,
+                            return_sequences=True)(lstm)
             else:
                 exit('WRONG MODEL NAME')
             lstm = Dense(1, activation="sigmoid")(lstm)

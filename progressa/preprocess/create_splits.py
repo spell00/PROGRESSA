@@ -9,16 +9,16 @@ def create_splits(args):
 
     n_samples = len(features)
     ## 1 = train, 2 = test, 3 = val
-    all_indices = np.ones((n_samples, args.n_splits+1))
-    all_indices[:, 0] = np.arange(1, n_samples + 1)
+    all_indices = np.ones((n_samples, args.n_splits))
+    # all_indices[:, 0] = np.arange(1, n_samples + 1)
     for i in range(args.n_splits):
         sss = StratifiedShuffleSplit(n_splits=1, test_size=0.3, random_state=i)
         train_index, test_val_index = next(sss.split(np.zeros(n_samples), labels[:, 0]))
         sss = StratifiedShuffleSplit(n_splits=1, test_size=0.5, random_state=i)
         test_index, val_index = next(sss.split(np.zeros(len(test_val_index)), labels[test_val_index, 0]))
 
-        all_indices[test_val_index[test_index], i + 1] = 2
-        all_indices[test_val_index[val_index], i + 1] = 3
+        all_indices[test_val_index[test_index], i] = 2
+        all_indices[test_val_index[val_index], i] = 3
 
         assert np.intersect1d(train_index, test_val_index[test_index]).size == 0
         assert np.intersect1d(train_index, test_val_index[val_index]).size == 0

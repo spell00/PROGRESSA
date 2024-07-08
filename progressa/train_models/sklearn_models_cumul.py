@@ -39,18 +39,24 @@ class SklearnClassifier(Classifier):
             X_val = np.nan_to_num(X_val, nan=-1)
 
             for v in range(self.n_max_visits):
-                x_train = X_train[:, :v+1, :]
+                to_keep = X_train[:, v].max(1) != -1
+                x_train = X_train[to_keep, :v+1, :]
                 x_train = x_train.reshape(x_train.shape[0], -1)
-                x_test = X_test[:, :v+1, :]
+                y_train = Y_train[to_keep, v]
+
+                to_keep = X_test[:, v].max(1) != -1
+                x_test = X_test[to_keep, :v+1, :]
                 x_test = x_test.reshape(x_test.shape[0], -1)
-                x_val = X_val[:, :v+1, :]
+                y_test = Y_test[to_keep, v]
+
+                to_keep = X_val[:, v].max(1) != -1
+                x_val = X_val[to_keep, :v+1, :]
                 x_val = x_val.reshape(x_val.shape[0], -1)
-                y_train = Y_train[:, v]
-                y_test = Y_test[:, v]
-                y_val = Y_val[:, v]
+                y_val = Y_val[to_keep, v]
 
                 model = self.model()
                 model.fit(x_train, y_train)
+                pickle.dump(model, open(f"results/{self.path}/weights/{i}.pkl", "wb"))
 
                 predictions = model.predict(x_test)
                 predictions_raw = model.predict_proba(x_test)[:, 1]
@@ -84,9 +90,9 @@ def main():
 
     os.makedirs(f'results/{args.model}_cumul', exist_ok=True)
     if args.n_features == -1:
-        args.features_file = f"{args.features_file}_{args.endpoint}.pkl"
+        args.features_file = f"{args.features_file}.pkl"
     else:
-        args.features_file = f"{args.features_file}-{args.n_features}_{args.endpoint}.pkl"
+        args.features_file = f"{args.features_file}-{args.n_features}.pkl"
 
     classifier = SklearnClassifier(args)
     classifier.load_data(

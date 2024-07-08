@@ -36,7 +36,7 @@ def get_args():
     parser.add_argument("--patients_output", type=str, default="patients.pkl")
     parser.add_argument("--labels_output", type=str, default="labels")
     parser.add_argument("--feature_names_output", type=str, default="feature_names.pkl")
-    parser.add_argument("--endpoint", type=str, default='2', help="Final endpoint or 2 years ['2', 'final'] ")
+    parser.add_argument("--endpoint", type=int, default=2, help="5 or 2 years [2, 5] ")
 
     args = parser.parse_args()
 
@@ -127,7 +127,7 @@ def filter_data(concat_df):
     return concat_df, n_max_visits
 
 
-def preprocess_data(concat_df, n_max_visits, clinical_outcomes, endpoint, main_DB_r, MRI_DB, sphygmocor_DB, DXA_DB):
+def preprocess_data(concat_df, n_max_visits, clinical_outcomes, endpoint, main_DB_r):
     global all_categ_cols
 
     patients = concat_df["PSA ID"].unique()
@@ -172,8 +172,8 @@ def preprocess_data(concat_df, n_max_visits, clinical_outcomes, endpoint, main_D
     # =============================
 
     labels = np.zeros((len(patients), n_max_visits))
-
-    endpoint = int(endpoint)
+    visits_per_patient_list = []
+    positive_per_patient_list = []
     for p_id, patient in enumerate(sorted(patients)):
         # visits_per_patient = concat_df[(concat_df["PSA ID"] == patient)& (concat_df["study_phase"] != "PO1y")]["visit_number"]
         # AVR_or_cardiovascular_death = clinical_outcomes[(clinical_outcomes["PSA ID"] == patient)]["AVR_or_cardiovascular_death"].values[0]
@@ -187,38 +187,54 @@ def preprocess_data(concat_df, n_max_visits, clinical_outcomes, endpoint, main_D
         #             labels[p_id, min(idx, 6):] = 1
         #             # print("sev")
         #             break
-        visits_per_patient = concat_df[(concat_df["PSA ID"] == patient)& (concat_df["study_phase"] != "PO1y")]["visit_number"]
+        visits_per_patient = len(concat_df[(concat_df["PSA ID"] == patient)& (concat_df["study_phase"] != "PO1y")]["visit_number"])
         AVR_or_cardiovascular_death = clinical_outcomes[(clinical_outcomes["PSA ID"] == patient)]["AVR_or_cardiovascular_death"].values[0]
         if AVR_or_cardiovascular_death == 1:
-            # -1 because indices start at 0
-            labels[p_id, max(len(visits_per_patient) - endpoint - 1, 0):] = 1
-            # labels[p_id, max(min(len(visits_per_patient), 6) - endpoint - 1, 0):] = 1
-            # print("avr")
+            labels[p_id, max(visits_per_patient - endpoint, 0):] = 1
+            # labels[p_id, max(visits_per_patient - endpoint - 1, 0):visits_per_patient] = 1
+
         severities = main_DB_r[(main_DB_r["PSA ID"] == patient) & (main_DB_r["study_phase"] != "PO1y")]["AS_severity"].values
         if(len(severities)) > 1:
             for idx in range(0, len(severities) - endpoint):
                 if severities[idx + endpoint] > severities[idx]:
-                    # labels[p_id, min(idx, 6):] = 1
+                    # If the severity changed on a given year, it is too
+                    # late to make a prediction. It already happened.
+                    # It makes no sense to make labels 1 from the point the
+                    # severity changes, unless the severity gets worse again
+                    # severity_change = min(np.argwhere(severities[idx:] == severities[idx + endpoint]).flatten())
+                    # labels[p_id, idx:idx+severity_change] = 1
                     labels[p_id, idx:] = 1
-                    # print("sev")
                     break
+        visits_array = np.zeros(11)
+        visits_array[:visits_per_patient] = 1
+        positive_per_patient_list.append(
+            [1 if x == 1 and y == 1 else 0 for x, y in zip(labels[p_id], visits_array)]
+        )
+        visits_per_patient_list.append(visits_array)
         # print(patient, labels[p_id])
-
+    visits_per_patient_list = np.array(visits_per_patient_list)
+    positive_per_patient_list = np.array(positive_per_patient_list)
     ## As for the features, remove labels for patients with only one visit
     labels = np.delete(labels, patients_to_delete, axis=0)
     patients = np.delete(patients, patients_to_delete, axis=0)
+    visits_per_patient_list = np.delete(visits_per_patient_list, patients_to_delete, axis=0)
+    positive_per_patient_list = np.delete(positive_per_patient_list, patients_to_delete, axis=0)
 
     # Finally, generate the names of the features
     #[2:] gets rid of PSA ID and visit_number
     feature_names = [col.replace("_", " ") for col in features_df.columns[2:]]
-
-    print(feature_names)
+    # Create a barplot of the number of 1s in the  per year
+    max_scores = np.sum(visits_per_patient_list, axis=0)
+    total_positives = np.sum(positive_per_patient_list, axis=0)
+    # save the number of samples per visit
+    pickle.dump(max_scores, open(f"number_samples_{endpoint}.pkl", "wb"))
+    pickle.dump(total_positives, open(f"total_positives_{endpoint}.pkl", "wb"))
 
     return patients, features, labels, feature_names
 
 
 def export_data(args, patients, features, labels, feature_names):
-    print(f"Exporting features to: {args.features_output}_{args.endpoint}")
+    print(f"Exporting features to: {args.features_output}")
     pickle.dump(features[:, :6], open(args.features_output, "wb"))
     print(f"Exporting labels to: {args.labels_output}")
     pickle.dump(labels[:, :6], open(args.labels_output, "wb"))
@@ -240,7 +256,7 @@ def main():
     print("Remaining shape of dataframe is: ", concat_df.shape)
 
     print("Preprocessing data and creating labels")
-    patients, features, labels, feature_names = preprocess_data(concat_df, n_max_visits, clinical_outcomes, args.endpoint, main_DB_R, MRI_DB, sphygmocor_DB, DXA_DB)
+    patients, features, labels, feature_names = preprocess_data(concat_df, n_max_visits, clinical_outcomes, args.endpoint, main_DB_R)
     print(f"Shape of the features is: {features.shape} / Shape of labels: {labels.shape}")
     print(f"Retrieved {len(feature_names)} different features")
 

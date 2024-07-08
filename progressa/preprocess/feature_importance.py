@@ -65,7 +65,7 @@ def make_feature_importance(args):
                 # X_val = scaler.transform(X_val.reshape(X_val.shape[0], -1)).reshape(X_val.shape)
                 X_val = scaler.transform(X_val.reshape(-1, X_val.shape[-1])).reshape(X_val.shape)
                 X_val = np.nan_to_num(X_val, nan=-1)
-                model = load_model(f"{args.results_path}/GRU/weights/{split_to_check}.h5")
+                model = load_model(f"{args.results_path}/{path}/{args.model}/weights/{split_to_check}.h5")
 
                 ### GRADIENTS IMPORTANCE ###
                 for idx in range(X_val.shape[0]):
@@ -117,6 +117,7 @@ def make_feature_importance(args):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default="GRU")
     parser.add_argument("--data_path", type=str, default="data/")
     parser.add_argument("--results_path", type=str, default="results/")
     parser.add_argument("--n_rep", type=int, default=100)
