@@ -1,7 +1,8 @@
 # PROGRESSA
 
 This repository contains the contain to reproduce the results of the paper 
-"Deep Learning-Based Algorithm to Predict Aortic Stenosis Progression from the PROGRESSA cohort"
+"AI-Enhanced Prediction of Aortic Stenosis Progression: Insights From the PROGRESSA Study"
+https://www.jacc.org/doi/abs/10.1016/j.jacadv.2024.101234
 
 ## Install
 
@@ -78,5 +79,7 @@ To reproduce the images from the paper, run the following commands
 
 `python3 progressa/create_images/plot_tsne.py`
 
+## Funding support 
 
+This work has been supported by MITACS Globalink (IT25650), Canadian Institutes of Health Research (#FDN-143225 and MOP-114997), Foundation of the Québec Heart and Lung Institute, Fonds de Recherche du Québec en Santé (FRQS), France Health Data Hub (HDH), and institutional research funds held by Drs Droit and Precioso
 
