@@ -1,8 +1,6 @@
 # PROGRESSA
 
-This repository contains the contain to reproduce the results of the paper 
-"AI-Enhanced Prediction of Aortic Stenosis Progression: Insights From the PROGRESSA Study"
-https://www.jacc.org/doi/abs/10.1016/j.jacadv.2024.101234
+This repository contains the code to reproduce the results of the paper Sanabria, M, Tastet, L, Pelletier, S, Leclercq, M, Ohl, L, Hermann, L, Mattei, P-A, Precioso, F, Coté, N, Pibarot, P, Droit, A. AI-Enhanced Prediction of Aortic Stenosis Progression: Insights From the PROGRESSA Study. JACC Adv. 2024 Oct, 3 (10) . https://doi.org/10.1016/j.jacadv.2024.101234
 
 ## Install
 
